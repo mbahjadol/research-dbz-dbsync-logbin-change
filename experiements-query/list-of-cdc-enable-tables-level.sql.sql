@@ -1,0 +1,1 @@
+SELECT * FROM cdc.change_tables;

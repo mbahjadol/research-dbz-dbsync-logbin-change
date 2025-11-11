@@ -1,0 +1,4 @@
+ALTER DATABASE inventory SET RECOVERY SIMPLE;
+CHECKPOINT;
+DBCC SHRINKFILE('YourDB_log', 1);
+ALTER DATABASE inventory SET RECOVERY FULL;  -- if you want to return to FULL
