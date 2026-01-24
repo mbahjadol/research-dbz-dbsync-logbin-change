@@ -3,19 +3,19 @@ TARGET=$1   # source-db or target-db
 ACTION=$2   # add, loss, reset, slow
 case $ACTION in
   slow)
-    docker exec -u 0 $TARGET tc qdisc add dev eth0 root netem delay 800ms 200ms distribution normal
+    podman exec -u 0 $TARGET tc qdisc add dev eth0 root netem delay 800ms 200ms distribution normal
     ;;
   loss20)
-    docker exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 20%
+    podman exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 20%
     ;;
   loss50)
-    docker exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 50%
+    podman exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 50%
     ;;
   loss100)
-    docker exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 100%
+    podman exec -u 0 $TARGET tc qdisc add dev eth0 root netem loss 100%
     ;;
   reset)
-    docker exec -u 0 $TARGET tc qdisc del dev eth0 root
+    podman exec -u 0 $TARGET tc qdisc del dev eth0 root
     ;;
   *)
     echo "Usage: $0 {source-db|target-db} {slow|loss20|loss50|loss100|reset}"

@@ -5,8 +5,8 @@ source ./env.sh
 start_time=$(date +%s)
 
 echo "starting the containers."
-docker compose -f ${DC_FILE} up -d --build --force-recreate
-# docker compose -f ${DC_FILE} up -d #--build --force-recreate
+podman compose -f ${DC_FILE} up -d --build --force-recreate
+# podman compose -f ${DC_FILE} up -d #--build --force-recreate
 
 # Include readines-containers.sh
 source ./readiness-containers.sh
@@ -28,10 +28,10 @@ check_grafana_container
 echo "All containers are fully running!"
 # press_enter
 
-# remove dangling docker images
+# remove dangling podman images
 echo "---------------------------------------------"
-echo "Removing dangling docker images..."
-docker image prune -f
+echo "Removing dangling podman images..."
+podman image prune -f
 echo "---------------------------------------------"
 
 # Initialize source and target databases
