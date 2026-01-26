@@ -33,7 +33,7 @@ target_json=$(jq \
     target.json)
 
 
-docker compose -f ${DC_FILE} exec kafka /kafka/bin/kafka-topics.sh \
+docker-compose -f ${DC_FILE} exec kafka /kafka/bin/kafka-topics.sh \
   --bootstrap-server kafka:9092 \
   --create \
   --topic dlq.$CONNECTOR_NAME_TARGET \

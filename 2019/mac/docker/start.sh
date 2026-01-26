@@ -5,8 +5,8 @@ source ./env.sh
 start_time=$(date +%s)
 
 echo "starting the containers."
-docker compose -f ${DC_FILE} up -d --build --force-recreate
-# docker compose -f ${DC_FILE} up -d #--build --force-recreate
+docker-compose -f ${DC_FILE} up -d --build --force-recreate
+# docker-compose -f ${DC_FILE} up -d #--build --force-recreate
 
 # Include readines-containers.sh
 source ./readiness-containers.sh

@@ -3,5 +3,5 @@
 source ./env.sh
 
 echo "Stopping the containers."
-docker compose -f ${DC_FILE} down
+docker-compose -f ${DC_FILE} down
 
