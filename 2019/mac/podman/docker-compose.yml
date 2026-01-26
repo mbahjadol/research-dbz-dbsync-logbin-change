@@ -1,0 +1,224 @@
+# version: '2'
+networks:
+  sim_zone:
+  source_zone:
+  target_zone:
+  kafka_zone:
+  monitor_zone:
+  db2db_zone:
+
+services:
+  # ============================================================
+  # 🧪 Simulation Service for generating workload {Source Zone}
+  # ============================================================
+  sim-svc:
+    container_name: sim-svc
+    image: sim-svc:latest
+    build: ./sim-svc
+    hostname: sim-svc
+    environment:
+      DB_SERVER: source-db
+      DB_PORT: 1433
+      DB_USER: sa
+      DB_PASSWORD: Password!
+      DB_NAME: inventory
+      QPS_INSERT: 2
+      QPS_UPDATE: 10
+    ports:
+      - "8000:8000"
+    networks:
+      - sim_zone
+
+  # ============================================================
+  # 🛢️ Source Database Service {Source Zone}
+  # ============================================================
+  source-db:
+    container_name: ${SOURCE_NAME}
+    image: sqlsvr2019-debezium-init:latest
+    build:
+      context: debezium-sqlserver-init
+    hostname: source-db
+    ports:
+     - 1433:1433
+    environment:
+     - ACCEPT_EULA=Y
+     - MSSQL_PID=Enterprise
+     - SA_USER=sa
+     - SA_PASSWORD=Password!
+     - MSSQL_AGENT_ENABLED=true
+     - MSSQL_ENABLE_HADR=1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - source_zone
+      - sim_zone
+      - db2db_zone
+
+  # ============================================================
+  # 🎯 Target Database Service {Target Zone}
+  # ============================================================
+  target-db:
+    container_name: ${TARGET_NAME}
+    image: sqlsvr2019-debezium-init:latest
+    build:
+      context: debezium-sqlserver-init
+    hostname: target-db
+    ports:
+     - 14331:1433
+    environment:
+     - ACCEPT_EULA=Y
+     - MSSQL_PID=Enterprise
+     - SA_USER=sa
+     - SA_PASSWORD=Password!
+     - MSSQL_AGENT_ENABLED=true
+     - MSSQL_ENABLE_HADR=1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - target_zone
+      - db2db_zone
+
+  # ============================================================
+  # ⛓️ Debezium Connect Service {bridges all zones}
+  # ============================================================
+  connect:
+    container_name: connect
+    image: quay.io/debezium/connect:${DEBEZIUM_VERSION}
+    ports:
+     - 8083:8083
+     - 9102:9102   # <-- Prometheus JMX metrics
+    hostname: connect
+    depends_on:
+     - kafka
+     - ${SOURCE_NAME}
+     - ${TARGET_NAME}
+    environment:
+     BOOTSTRAP_SERVERS: kafka:9092
+     GROUP_ID: 1
+     CONFIG_STORAGE_TOPIC: ${CONFIG_STORAGE_TOPIC}
+     OFFSET_STORAGE_TOPIC: ${OFFSET_STORAGE_TOPIC}
+     STATUS_STORAGE_TOPIC: ${STATUS_STORAGE_TOPIC}
+     KAFKA_JMX_PORT: 9102
+     KAFKA_JMX_OPTS: |
+      -Dcom.sun.management.jmxremote=true
+      -Dcom.sun.management.jmxremote.local.only=false
+      -Dcom.sun.management.jmxremote.rmi.port=9102
+      -Djava.rmi.server.hostname=connect
+    networks:
+      - source_zone
+      - target_zone
+      - kafka_zone
+      - monitor_zone
+
+  # ============================================================
+  # 🐒 Zookeeper Service {Kafka Zone}
+  # ============================================================
+  zookeeper:
+    container_name: zookeeper
+    image: quay.io/debezium/zookeeper:${DEBEZIUM_VERSION}
+    ports:
+     - 2181:2181
+     - 2888:2888
+     - 3888:3888
+    hostname: zookeeper
+    networks:
+      - kafka_zone
+
+  # ============================================================
+  # 🔗 Kafka Service {Kafka Zone}
+  # ============================================================
+  kafka:  
+    container_name: kafka
+    image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
+    ports:
+     - 9092:9092
+     - 9101:9101   # <-- Prometheus JMX metrics
+    hostname: kafka
+    depends_on:
+     - zookeeper
+    environment:
+     ZOOKEEPER_CONNECT: zookeeper:2181
+     KAFKA_JMX_PORT: 9101
+     KAFKA_JMX_OPTS: |
+      -Dcom.sun.management.jmxremote=true
+      -Dcom.sun.management.jmxremote.local.only=false
+      -Dcom.sun.management.jmxremote.rmi.port=9101
+      -Djava.rmi.server.hostname=kafka
+    networks:
+      - kafka_zone
+  
+  # ============================================================
+  # 🌐 Kafka UI Service {Kafka Zone}
+  # ============================================================
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui
+    ports:
+      - "8080:8080"
+    hostname: kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092  # Adjust if your broker name is different     
+    networks:
+      - kafka_zone
+
+  # ============================================================
+  # 📤 Kafka Exporter Service {Kafka Zone & Monitor Zone }
+  # ============================================================
+  kafka-exporter:
+    container_name: kafka-exporter
+    image: danielqsj/kafka-exporter:latest
+    ports:
+      - "9308:9308"
+    hostname: kafka-exporter
+    command:
+      - "--kafka.server=kafka:9092"
+      - "--log.level=info"
+    depends_on:
+      - kafka
+    restart: unless-stopped
+    networks:
+      - kafka_zone
+      - monitor_zone
+
+  # ============================================================
+  # 📈 Prometheus Service {Monitor Zone}
+  # ============================================================
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    hostname: prometheus
+    depends_on:
+      - kafka
+      - connect
+      - kafka-exporter
+    networks:
+      - monitor_zone
+
+  # ============================================================
+  # 📊 Grafana Service {Monitor Zone}
+  # ============================================================
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    # entrypoint: ["/bin/bash", "/grafana-init.sh"]
+    volumes:
+      - ./grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml
+      - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./grafana/provisioning/dashboards_json/kafka-lag-dashboard.json:/etc/grafana/provisioning/dashboards_json/kafka-lag-dashboard.json      
+      # - ./grafana/grafana-init.sh:/grafana-init.sh
+    ports:
+      - "3000:3000"
+    hostname: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - monitor_zone
+
