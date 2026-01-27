@@ -10,9 +10,10 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "Password!")
 DB_NAME = os.getenv("DB_NAME", "inventory")
 
 CONN_STR = (
-    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
     f"SERVER={DB_SERVER},{DB_PORT};DATABASE={DB_NAME};"
-    f"UID={DB_USER};PWD={DB_PASSWORD}"
+    f"UID={DB_USER};PWD={DB_PASSWORD};"
+    f"Encrypt=yes;TrustServerCertificate=yes"
 )
 
 def get_conn():

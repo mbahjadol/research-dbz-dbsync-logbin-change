@@ -8,8 +8,7 @@ data flow with SQLServer 2019 as source connector and SQLServer 2019  as sink co
 
 ### Specifications
 
-  SQLServer version 2019
-  FROM mcr.microsoft.com/mssql/server:2019-latest
+  This version is perform nicely with orbstack-docker in mac m4 24gb
 
 ---
 
@@ -147,6 +146,11 @@ Using:
 ### Usage or Running The Simulation
 
 All processed is almost automatically from creating container setup the connector until you can testing the flow you can only running single command and then you can follow the instruction.
+
+### Spesific for using in Mac (Test in M4 24GB RAM)
+The database is will be split into VM via mac utm for mac version.
+
+
 
 #### Running
 
